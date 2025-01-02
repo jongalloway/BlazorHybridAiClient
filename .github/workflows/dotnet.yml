@@ -1,0 +1,54 @@
+# This workflow will build a .NET projectname: build
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+    - '**.cs'
+    - '**.csproj'
+    - '**.xaml'
+  pull_request:
+    branches: [ main ]
+    paths:
+    - '**.cs'
+    - '**.csproj'
+    - '**.xaml'
+    - '**.targets'
+    - '**.props'
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '9.0.x' # The .NET SDK version to use
+
+jobs:
+  build:
+
+    name: Build All Projects
+    runs-on: windows-latest
+        
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Setup MSBuild.exe
+      uses: microsoft/setup-msbuild@v2
+      with:
+        vs-prerelease: true
+    
+    - name: Install .NET workloads
+      shell: pwsh
+      run: |
+        dotnet workload install android
+        dotnet workload install ios
+        dotnet workload install maccatalyst
+        dotnet workload install maui
+      
+    - name: Restore dependencies
+      run: dotnet restore
+    - name: Build
+      run: dotnet build --no-restore
+    - name: Test
+      run: dotnet test --no-build --verbosity normal
