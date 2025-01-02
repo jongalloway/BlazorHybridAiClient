@@ -14,7 +14,11 @@ namespace YourApp.AI
 #if DEBUG
         public static async Task Main(string[] args)
         {
-            var host = CreateHostBuilder(args).Build();
+            IConfigurationRoot config = new ConfigurationBuilder()
+                .AddUserSecrets<Program>()
+                .Build();
+
+            var host = CreateHostBuilder(args, config).Build();
 
             using var scope = host.Services.CreateScope();
             var services = scope.ServiceProvider;
@@ -36,14 +40,13 @@ namespace YourApp.AI
         }
 #endif
 
-        public static IHostBuilder CreateHostBuilder(string[] args) =>
+        public static IHostBuilder CreateHostBuilder(string[] args, IConfigurationRoot config) =>
             Host.CreateDefaultBuilder(args)
                 .ConfigureServices((hostContext, services) =>
                 {
-                    var configuration = hostContext.Configuration;
-                    var endpoint = new Uri(configuration["ChatService:Endpoint"]);
-                    var model = configuration["ChatService:Model"];
-                    var token = Environment.GetEnvironmentVariable("GH_TOKEN");
+                    var endpoint = new Uri(config["ChatService:Endpoint"]);
+                    var model = config["ChatService:Model"];
+                    var token = config["GH_TOKEN"];
 
                     IChatClient client = new ChatCompletionsClient(endpoint, new AzureKeyCredential(token))
                         .AsChatClient(model);
