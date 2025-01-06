@@ -1,0 +1,49 @@
+﻿@page "/aiconfiguration"
+@using Microsoft.Maui.Storage
+@code {
+    [Parameter] public EventCallback OnSettingsSaved { get; set; }
+    [Parameter] public EventCallback<string> OnApiKeyChanged { get; set; }
+    [Parameter] public EventCallback<string> OnEndpointChanged { get; set; }
+    [Parameter] public EventCallback<string> OnModelChanged { get; set; }
+
+    private string _apiKeyInput = string.Empty;
+    private string _endpointInput = string.Empty;
+    private string _modelInput = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        LoadApiSettings();
+    }
+
+    private void SaveApiSettings()
+    {
+        Preferences.Set("API_KEY", _apiKeyInput);
+        Preferences.Set("ENDPOINT", _endpointInput);
+        Preferences.Set("MODEL", _modelInput);
+        OnApiKeyChanged.InvokeAsync(_apiKeyInput);
+        OnEndpointChanged.InvokeAsync(_endpointInput);
+        OnModelChanged.InvokeAsync(_modelInput);
+        OnSettingsSaved.InvokeAsync();
+    }
+
+    private void LoadApiSettings()
+    {
+        _apiKeyInput = Preferences.Get("API_KEY", string.Empty);
+        _endpointInput = Preferences.Get("ENDPOINT", "https://models.inference.ai.azure.com");
+        _modelInput = Preferences.Get("MODEL", "Phi-3.5-MoE-instruct");
+    }
+}
+
+<div class="container mt-4">
+    <h3>API Configuration</h3>
+    <div class="input-group mb-3">
+        <input @bind="_apiKeyInput" class="form-control" placeholder="Enter your API key..." />
+    </div>
+    <div class="input-group mb-3">
+        <input @bind="_endpointInput" class="form-control" placeholder="Enter the AI endpoint..." />
+    </div>
+    <div class="input-group mb-3">
+        <input @bind="_modelInput" class="form-control" placeholder="Enter the AI model..." />
+    </div>
+    <button class="btn btn-primary" @onclick="SaveApiSettings">Save API Settings</button>
+</div>

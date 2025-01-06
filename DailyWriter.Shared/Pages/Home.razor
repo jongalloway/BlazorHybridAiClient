@@ -1,14 +1,153 @@
 ﻿@page "/"
+@using Azure
+@using Azure.AI.Inference
+@using Microsoft.Maui.Storage
 @using DailyWriter.Shared.Services
+@using Microsoft.Extensions.AI
 @inject IFormFactor FormFactor
 
-<PageTitle>Home</PageTitle>
+<PageTitle>AI REPL test page</PageTitle>
 
 <h1>Hello, world!</h1>
 
-Welcome to your new app running on <em>@factor</em> using <em>@platform</em>.
+Welcome to your new app
+
+@if (!string.IsNullOrEmpty(_apiKey) && !string.IsNullOrEmpty(_endpoint) && !string.IsNullOrEmpty(_model))
+{
+    <div class="container mt-4">
+        <h3>AI Chat REPL</h3>
+        <div class="chat-history mb-3">
+            @foreach (var message in _chatHistory)
+            {
+                <p><strong>@message.User:</strong> @message.Text</p>
+            }
+        </div>
+        <div class="input-group mb-3">
+            <input @bind="_input" class="form-control" placeholder="Type your prompt here..." @onkeypress="@(async (e) => await HandleKeyPress(e))" disabled="@_isLoading" />
+            <button class="btn btn-primary" @onclick="@(async () => await SendPrompt())" disabled="@_isLoading">Send</button>
+        </div>
+        <button class="btn btn-secondary" @onclick="ShowConfig">⚙️</button>
+        @if (_isLoading)
+        {
+            <p>⏳ Loading... (@_elapsedSeconds seconds)</p>
+        }
+    </div>
+}
+else
+{
+    <AIConfiguration OnSettingsSaved="OnSettingsSaved" OnApiKeyChanged="OnApiKeyChanged" OnEndpointChanged="OnEndpointChanged" OnModelChanged="OnModelChanged" />
+}
+
+@if (_showConfig)
+{
+    <AIConfiguration OnSettingsSaved="OnSettingsSaved" OnApiKeyChanged="OnApiKeyChanged" OnEndpointChanged="OnEndpointChanged" OnModelChanged="OnModelChanged" />
+}
+
+Running on <em>@factor</em> using <em>@platform</em>.
 
 @code {
     private string factor => FormFactor.GetFormFactor();
     private string platform => FormFactor.GetPlatform();
+    private string _apiKey = string.Empty;
+    private string _endpoint = string.Empty;
+    private string _model = string.Empty;
+    private IChatClient? client = null;
+    private string _input = string.Empty;
+    private List<ChatMessage> _chatHistory = new();
+    private bool _isLoading = false;
+    private int _elapsedSeconds = 0;
+    private Timer? _timer = null;
+    private bool _showConfig = false;
+
+    protected override void OnInitialized()
+    {
+        LoadApiSettings();
+        if (!string.IsNullOrEmpty(_apiKey) && !string.IsNullOrEmpty(_endpoint) && !string.IsNullOrEmpty(_model))
+        {
+            InitializeChatClient();
+        }
+    }
+
+    private async Task SendPrompt()
+    {
+        if (!string.IsNullOrEmpty(_input) && client != null)
+        {
+            _isLoading = true;
+            _elapsedSeconds = 0;
+            _timer = new Timer(UpdateElapsedSeconds, null, 0, 1000);
+            _chatHistory.Add(new ChatMessage { User = "User", Text = _input });
+            StateHasChanged(); // Ensure the loading indicator is shown immediately
+            var aiResponse = await client.CompleteAsync(_input);
+            _chatHistory.Add(new ChatMessage { User = "AI", Text = aiResponse.Message?.Text ?? "No response" });
+            _input = string.Empty;
+            _isLoading = false;
+            _timer.Dispose();
+            StateHasChanged(); // Ensure the loading indicator is hidden after completion
+        }
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !_isLoading)
+        {
+            await SendPrompt();
+        }
+    }
+
+    private void UpdateElapsedSeconds(object? state)
+    {
+        _elapsedSeconds++;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnSettingsSaved()
+    {
+        LoadApiSettings();
+        InitializeChatClient();
+        _showConfig = false;
+        StateHasChanged();
+    }
+
+    private void OnApiKeyChanged(string apiKey)
+    {
+        _apiKey = apiKey;
+    }
+
+    private void OnEndpointChanged(string endpoint)
+    {
+        _endpoint = endpoint;
+    }
+
+    private void OnModelChanged(string model)
+    {
+        _model = model;
+    }
+
+    private void LoadApiSettings()
+    {
+        _apiKey = Preferences.Get("API_KEY", string.Empty);
+        _endpoint = Preferences.Get("ENDPOINT", "https://models.inference.ai.azure.com");
+        _model = Preferences.Get("MODEL", "Phi-3.5-MoE-instruct");
+    }
+
+    private void InitializeChatClient()
+    {
+        if (!string.IsNullOrEmpty(_apiKey) && !string.IsNullOrEmpty(_endpoint) && !string.IsNullOrEmpty(_model))
+        {
+            var endpointUri = new Uri(_endpoint);
+            client = new ChatCompletionsClient(endpointUri, new AzureKeyCredential(_apiKey))
+                .AsChatClient(_model);
+        }
+    }
+
+    private void ShowConfig()
+    {
+        _showConfig = true;
+    }
+
+    private class ChatMessage
+    {
+        public string User { get; set; } = string.Empty;
+        public string Text { get; set; } = string.Empty;
+    }
 }
