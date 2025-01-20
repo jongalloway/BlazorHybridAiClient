@@ -4,17 +4,17 @@ on:
   push:
     branches: [ main ]
     paths:
-    - '**.cs'
-    - '**.csproj'
-    - '**.xaml'
+    - 'src/client/**/*.cs'
+    - 'src/client/**/*.csproj'
+    - 'src/client/**/*.xaml'
   pull_request:
     branches: [ main ]
     paths:
-    - '**.cs'
-    - '**.csproj'
-    - '**.xaml'
-    - '**.targets'
-    - '**.props'
+    - 'src/client/**/*.cs'
+    - 'src/client/**/*.csproj'
+    - 'src/client/**/*.xaml'
+    - 'src/client/**/*.targets'
+    - 'src/client/**/*.props'
   workflow_dispatch:
 
 env:
@@ -47,8 +47,8 @@ jobs:
         dotnet workload install maui
       
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore src/client/Client.sln
     - name: Build
-      run: dotnet build --no-restore
+      run: dotnet build --no-restore src/client/Client.sln
     - name: Test
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet test --no-build --verbosity normal src/client/Client.sln
