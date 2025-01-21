@@ -1,1 +1,1 @@
-# DailyWriter
+# BlazorHybridAiClient
